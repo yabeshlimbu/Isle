@@ -25,9 +25,34 @@ A small macOS app that turns the notch at the top of your screen into a handy li
 
 ### Download
 
-Get `Isle.app` from the [Releases](../../releases) page and move it to `/Applications`.
+1. Download `Isle-0.1.zip` from the [Releases](../../releases) page.
+2. Unzip it and move `Isle.app` to **Applications**.
+3. Open Isle.
 
-The app isn't notarized by Apple yet, so the first time you open it macOS will say it can't check it. Right-click Isle → **Open**, or go to **System Settings → Privacy & Security** and click **Open Anyway**.
+#### "Isle" Not Opened?
+
+Isle isn't notarized by Apple (that needs a paid developer account), so the first time you open it macOS shows this:
+
+<img src="docs/images/blocked.png" alt="macOS dialog: “Isle” Not Opened. Apple could not verify “Isle” is free of malware." width="300">
+
+This is expected. To open it anyway:
+
+1. Click **Done** (not *Move to Trash*).
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
+3. Next to **"Isle" was blocked to protect your Mac**, click **Open Anyway** and enter your password.
+4. Open Isle again and click **Open**.
+
+You only need to do this once.
+
+<details>
+<summary>Prefer Terminal?</summary>
+
+Remove the "downloaded from the internet" flag, then open Isle normally:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Isle.app
+```
+</details>
 
 ### Build it yourself
 
