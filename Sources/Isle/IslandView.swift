@@ -33,18 +33,22 @@ struct IslandView: View {
     @ObservedObject var state: IslandState
     let features: Features
     @ObservedObject private var music: NowPlaying
+    @ObservedObject private var activities: ActivityCenter
 
     init(state: IslandState, features: Features) {
         self.state = state
         self.features = features
         _music = ObservedObject(wrappedValue: features.music)
+        _activities = ObservedObject(wrappedValue: features.activities)
     }
 
     private var live: Bool { music.track?.playing ?? false }
 
     var body: some View {
-        let size = IslandMetrics.size(notch: state.notchSize, expanded: state.expanded, live: live)
-        let shape = NotchShape(flare: IslandMetrics.flare, bottomRadius: state.expanded ? 24 : 10)
+        let showBanner = !state.expanded && state.banner != nil
+        let size = IslandMetrics.size(notch: state.notchSize, expanded: state.expanded, live: live, banner: showBanner)
+        let shape = NotchShape(flare: IslandMetrics.flare, bottomRadius: state.expanded ? 24 : showBanner ? 20 : 10)
+        let showCircles = !state.expanded && !showBanner
 
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
@@ -54,6 +58,13 @@ struct IslandView: View {
                     ExpandedContent(state: state, features: features)
                         .padding(.horizontal, IslandMetrics.flare + 18)
                         .padding(.bottom, 14)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                } else if showBanner, let banner = state.banner {
+                    BannerView(banner: banner)
+                        .padding(.horizontal, IslandMetrics.flare)
+                        .padding(.top, state.notchSize.height)
+                        .onTapGesture { state.tapBanner() }
+                        .id(banner.id)
                         .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
                 } else if live {
                     CollapsedContent(music: music, notchWidth: state.notchSize.width)
@@ -67,15 +78,45 @@ struct IslandView: View {
             .overlay(
                 shape.stroke(Color.white.opacity(state.dropTargeted ? 0.5 : 0), lineWidth: 2)
             )
-            .shadow(color: .black.opacity(state.expanded ? 0.4 : 0), radius: 14, y: 6)
+            .shadow(color: .black.opacity(state.expanded || showBanner ? 0.4 : 0), radius: 14, y: 6)
+            // Activity circles ride beside the notch, so the notch keeps the music.
+            .overlay(alignment: .topLeading) {
+                if showCircles && !activities.left.isEmpty {
+                    circles(activities.left)
+                        .offset(x: -(circlesWidth(activities.left.count) + IslandMetrics.circleGap))
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if showCircles && !activities.right.isEmpty {
+                    circles(activities.right)
+                        .offset(x: circlesWidth(activities.right.count) + IslandMetrics.circleGap)
+                }
+            }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: live)
+        .animation(.spring(response: 0.38, dampingFraction: 0.82), value: state.banner)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: activities.left)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: activities.right)
         .animation(.easeOut(duration: 0.15), value: state.tab)
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+extension IslandView {
+    private func circlesWidth(_ count: Int) -> CGFloat {
+        let d = IslandMetrics.circleDiameter(notch: state.notchSize)
+        return CGFloat(count) * d + CGFloat(max(count - 1, 0)) * IslandMetrics.circleGap
+    }
+
+    private func circles(_ kinds: [ActivityKind]) -> some View {
+        let d = IslandMetrics.circleDiameter(notch: state.notchSize)
+        return ActivityCircles(kinds: kinds, diameter: d, features: features) { state.openActivity($0) }
+            .frame(height: state.notchSize.height)
+            .fixedSize()
     }
 }
 
@@ -144,6 +185,7 @@ struct ExpandedContent: View {
         switch state.tab {
         case .home: HomeTab(features: features)
         case .calendar: CalendarPanel(model: features.calendar)
+        case .timer: TimerPanel(timer: features.timer)
         case .clipboard: ClipboardPanel(model: features.clipboard)
         case .shelf: ShelfPanel(shelf: features.shelf, converter: features.converter, state: state)
         case .notes: NotesPanel(notes: features.notes)
@@ -183,7 +225,7 @@ struct Header: View {
                     Button { state.tab = tab } label: {
                         Image(systemName: tab.symbol)
                             .font(.system(size: 11, weight: .semibold))
-                            .frame(width: 26, height: 22)
+                            .frame(width: 24, height: 22)
                             .foregroundStyle(Color.white.opacity(selected ? 1 : 0.45))
                             .background(Capsule().fill(Color.white.opacity(selected ? 0.16 : 0)))
                             .contentShape(Rectangle())
@@ -192,7 +234,9 @@ struct Header: View {
                     .help(tab.title)
                 }
             }
-            Spacer(minLength: state.notchSize.width + 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Keep everything clear of the camera housing, which has no pixels.
+            Color.clear.frame(width: state.notchSize.width + 16)
             HStack(spacing: 8) {
                 Button {
                     NotificationCenter.default.post(name: .openIsleSettings, object: nil)
@@ -225,6 +269,7 @@ struct Header: View {
                     .foregroundStyle(battery.charging ? Color.green : Color.white.opacity(0.7))
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }

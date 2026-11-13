@@ -1,15 +1,17 @@
 import AppKit
+import ApplicationServices
 import Combine
 import SwiftUI
 
 enum IslandTab: String, CaseIterable, Identifiable {
-    case home, calendar, clipboard, shelf, notes, camera
+    case home, calendar, timer, clipboard, shelf, notes, camera
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     var symbol: String {
         switch self {
         case .home: return "house.fill"
         case .calendar: return "calendar"
+        case .timer: return "timer"
         case .clipboard: return "doc.on.clipboard"
         case .shelf: return "tray.full.fill"
         case .notes: return "note.text"
@@ -24,6 +26,11 @@ final class IslandState: ObservableObject {
     @Published var hasNotch = false
     @Published var tab: IslandTab = .home
     @Published var dropTargeted = false
+    /// A notification showing in the notch.
+    @Published var banner: Banner?
+    /// Set by the controller: what clicking a circle or the banner does.
+    var openActivity: (ActivityKind) -> Void = { _ in }
+    var tapBanner: () -> Void = {}
 
     // Drag-and-drop onto the notch
     @Published var dragging = false
@@ -33,15 +40,23 @@ final class IslandState: ObservableObject {
 }
 
 enum IslandMetrics {
-    static let expandedWidth: CGFloat = 600
+    static let expandedWidth: CGFloat = 640
     static let expandedContentHeight: CGFloat = 150
     static let liveWing: CGFloat = 40      // extra width on each side when something is "live"
     static let flare: CGFloat = 8          // concave top corners, like the real notch
     static let shadowRoom: CGFloat = 40
+    static let bannerWidth: CGFloat = 440
+    static let bannerContentHeight: CGFloat = 58
+    static let circleGap: CGFloat = 6
 
-    static func size(notch: CGSize, expanded: Bool, live: Bool) -> CGSize {
+    static func circleDiameter(notch: CGSize) -> CGFloat { max(20, notch.height - 4) }
+
+    static func size(notch: CGSize, expanded: Bool, live: Bool, banner: Bool = false) -> CGSize {
         if expanded {
             return CGSize(width: expandedWidth, height: notch.height + expandedContentHeight)
+        }
+        if banner {
+            return CGSize(width: max(bannerWidth, notch.width + flare * 2), height: notch.height + bannerContentHeight)
         }
         return CGSize(width: notch.width + (live ? liveWing * 2 : 0) + flare * 2, height: notch.height)
     }
@@ -91,6 +106,8 @@ final class IslandController {
     private var cancellables = Set<AnyCancellable>()
     private var lastDragCount = NSPasteboard(name: .drag).changeCount
     private var dragEndWork: DispatchWorkItem?
+    private var bannerWork: DispatchWorkItem?
+    private var bannerHovered = false
 
     init() {
         let host = FirstClickHostingView(rootView: IslandView(state: state, features: features))
@@ -101,6 +118,25 @@ final class IslandController {
             self?.state.tab = .shelf
             self?.peek(seconds: 5)
         }
+        state.openActivity = { [weak self] kind in self?.openActivity(kind) }
+        state.tapBanner = { [weak self] in
+            guard let self, let banner = self.state.banner else { return }
+            self.dismissBanner()
+            banner.onClick?()
+        }
+        features.timer.onFinish = { [weak self] total in
+            let minutes = Int((total / 60).rounded())
+            let length = minutes >= 1 ? "\(minutes)-minute " : ""
+            self?.showBanner(Banner(title: "Time's up", body: "Your \(length)timer has finished.",
+                                    appBundleID: nil, symbol: "timer", onClick: nil), seconds: 8)
+        }
+        features.notifications.onNotification = { [weak self] banner in self?.showBanner(banner) }
+        Settings.shared.$notificationsInNotch.sink { [weak self] on in
+            self?.features.notifications.setEnabled(on)
+            // Ask macOS (this also adds Isle to the Accessibility list).
+            if on && !AXIsProcessTrusted() { self?.features.notifications.requestPermission() }
+        }.store(in: &cancellables)
+
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in self?.layout() }
@@ -136,6 +172,7 @@ final class IslandController {
         features.calendar.start()
         features.stats.start()
         features.quotes.start()
+        features.downloads.start()
 
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged]
         if let m = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in self?.mouseMoved() }) {
@@ -184,22 +221,49 @@ final class IslandController {
     }
 
     private var isLive: Bool { features.music.track?.playing ?? false }
+    private var bannerShowing: Bool { !state.expanded && state.banner != nil }
 
     /// The island's visible area in screen coordinates (slightly padded).
     private func hotRect() -> NSRect {
         guard let s = screen else { return .zero }
-        let size = IslandMetrics.size(notch: state.notchSize, expanded: state.expanded, live: isLive)
+        let size = IslandMetrics.size(notch: state.notchSize, expanded: state.expanded, live: isLive,
+                                      banner: bannerShowing)
         return NSRect(x: s.frame.midX - size.width / 2, y: s.frame.maxY - size.height,
                       width: size.width, height: size.height).insetBy(dx: -4, dy: -6)
     }
 
+    /// The strip holding the activity circles beside the collapsed notch.
+    private func circleRect() -> NSRect? {
+        guard let s = screen, !state.expanded, !bannerShowing else { return nil }
+        let left = CGFloat(features.activities.left.count), right = CGFloat(features.activities.right.count)
+        guard left + right > 0 else { return nil }
+        let step = IslandMetrics.circleDiameter(notch: state.notchSize) + IslandMetrics.circleGap
+        let size = IslandMetrics.size(notch: state.notchSize, expanded: false, live: isLive)
+        return NSRect(x: s.frame.midX - size.width / 2 - left * step, y: s.frame.maxY - state.notchSize.height,
+                      width: size.width + (left + right) * step, height: state.notchSize.height)
+    }
+
     private func mouseMoved() {
-        let inside = hotRect().contains(NSEvent.mouseLocation)
+        let location = NSEvent.mouseLocation
+        let inside = hotRect().contains(location)
+        let overCircles = !inside && (circleRect()?.contains(location) ?? false)
         let buttonDown = NSEvent.pressedMouseButtons & 1 != 0
-        // Only capture clicks while the pointer is over the island;
+        // Only capture clicks while the pointer is over the island or a circle;
         // everywhere else clicks fall through to whatever is underneath.
-        panel.ignoresMouseEvents = !inside
+        panel.ignoresMouseEvents = !(inside || overCircles)
         trackDrag(inside: inside, buttonDown: buttonDown)
+
+        // A notification stays put while the pointer is on it, so it can be clicked.
+        if bannerShowing && !state.dragging {
+            if inside && !bannerHovered {
+                bannerHovered = true
+                bannerWork?.cancel()
+            } else if !inside && bannerHovered {
+                bannerHovered = false
+                scheduleBannerDismiss(after: 1.5)
+            }
+            return
+        }
 
         if inside {
             pinned = false
@@ -286,6 +350,51 @@ final class IslandController {
             setExpanded(true)
             pinned = true
             panel.ignoresMouseEvents = false
+        }
+    }
+
+    // MARK: Notifications and activities
+
+    func showBanner(_ banner: Banner, seconds: TimeInterval = 5) {
+        // The user is already looking at the open island; don't cover it.
+        guard !state.expanded else {
+            NotificationWatcher.note("Skipped \(banner.title): island is open")
+            return
+        }
+        NotificationWatcher.note("Showing \(banner.title)")
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { state.banner = banner }
+        bannerHovered = hotRect().contains(NSEvent.mouseLocation)
+        if !bannerHovered { scheduleBannerDismiss(after: seconds) }
+        mouseMoved()
+    }
+
+    private func scheduleBannerDismiss(after seconds: TimeInterval) {
+        bannerWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.dismissBanner() }
+        bannerWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    private func dismissBanner() {
+        bannerWork?.cancel()
+        bannerWork = nil
+        bannerHovered = false
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { state.banner = nil }
+        mouseMoved()
+    }
+
+    private func openActivity(_ kind: ActivityKind) {
+        switch kind {
+        case .keepAwake:
+            features.keepAwake.toggle()
+        case .meeting:
+            state.tab = .calendar
+            toggle()
+        case .timer:
+            state.tab = .timer
+            toggle()
+        case .download:
+            features.downloads.revealInFinder()
         }
     }
 

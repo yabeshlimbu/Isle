@@ -17,8 +17,13 @@ final class Features {
     let keepAwake = KeepAwake()
     let camera = CameraMirror()
     let converter = Converter()
+    let timer = TimerModel()
+    let downloads = DownloadMonitor()
+    let notifications = NotificationWatcher()
+    let activities: ActivityCenter
 
     init() {
+        activities = ActivityCenter(keepAwake: keepAwake, timer: timer, downloads: downloads, calendar: calendar)
         converter.onOutputs = { [weak shelf] urls in urls.forEach { shelf?.add($0) } }
     }
 }
