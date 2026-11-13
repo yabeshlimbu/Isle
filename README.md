@@ -1,4 +1,6 @@
-# Isle
+<p align="center"><img src="docs/images/icon.png" alt="Isle app icon" width="128"></p>
+
+<h1 align="center">Isle</h1>
 
 A small macOS app that turns the notch at the top of your screen into a handy little island. Hover over the notch (or press <kbd>⌃ Space</kbd>) to open it.
 

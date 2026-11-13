@@ -3,6 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key><string>io.github.yabeshlimbu17.isle</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleName</key><string>Isle</string>
     <key>CFBundleDisplayName</key><string>Isle</string>
     <key>CFBundleExecutable</key><string>Isle</string>
