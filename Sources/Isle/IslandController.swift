@@ -26,7 +26,7 @@ final class IslandState: ObservableObject {
     @Published var hasNotch = false
     @Published var tab: IslandTab = .home
     @Published var dropTargeted = false
-    /// A notification showing in the notch.
+    /// A message (e.g. timer finished) showing in the notch.
     @Published var banner: Banner?
     /// Set by the controller: what clicking a circle or the banner does.
     var openActivity: (ActivityKind) -> Void = { _ in }
@@ -130,12 +130,6 @@ final class IslandController {
             self?.showBanner(Banner(title: "Time's up", body: "Your \(length)timer has finished.",
                                     appBundleID: nil, symbol: "timer", onClick: nil), seconds: 8)
         }
-        features.notifications.onNotification = { [weak self] banner in self?.showBanner(banner) }
-        Settings.shared.$notificationsInNotch.sink { [weak self] on in
-            self?.features.notifications.setEnabled(on)
-            // Ask macOS (this also adds Isle to the Accessibility list).
-            if on && !AXIsProcessTrusted() { self?.features.notifications.requestPermission() }
-        }.store(in: &cancellables)
 
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -353,15 +347,11 @@ final class IslandController {
         }
     }
 
-    // MARK: Notifications and activities
+    // MARK: Banners and activities
 
     func showBanner(_ banner: Banner, seconds: TimeInterval = 5) {
         // The user is already looking at the open island; don't cover it.
-        guard !state.expanded else {
-            NotificationWatcher.note("Skipped \(banner.title): island is open")
-            return
-        }
-        NotificationWatcher.note("Showing \(banner.title)")
+        guard !state.expanded else { return }
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { state.banner = banner }
         bannerHovered = hotRect().contains(NSEvent.mouseLocation)
         if !bannerHovered { scheduleBannerDismiss(after: seconds) }

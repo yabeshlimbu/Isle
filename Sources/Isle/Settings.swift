@@ -22,21 +22,11 @@ final class Settings: ObservableObject {
         didSet { UserDefaults.standard.set(showInFullscreen, forKey: "showInFullscreen") }
     }
 
-    // Notifications
-    @Published var notificationsInNotch: Bool {
-        didSet { UserDefaults.standard.set(notificationsInNotch, forKey: "notificationsInNotch") }
-    }
-    @Published var hideSystemBanners: Bool {
-        didSet { UserDefaults.standard.set(hideSystemBanners, forKey: "hideSystemBanners") }
-    }
-
     private init() {
         let d = UserDefaults.standard
         clipboardLimit = d.object(forKey: "clipboardLimit") as? Int ?? 30
         clipboardPersist = d.object(forKey: "clipboardPersist") as? Bool ?? true
         showInFullscreen = d.object(forKey: "showInFullscreen") as? Bool ?? false
-        notificationsInNotch = d.object(forKey: "notificationsInNotch") as? Bool ?? false
-        hideSystemBanners = d.object(forKey: "hideSystemBanners") as? Bool ?? true
     }
 }
 
@@ -91,37 +81,6 @@ struct GeneralSettingsTab: View {
                 Toggle("Show island in fullscreen apps", isOn: $settings.showInFullscreen)
             } header: {
                 Text("Appearance").font(.headline)
-            }
-            Section {
-                Toggle("Show notifications in the notch", isOn: $settings.notificationsInNotch)
-                    .onChange(of: settings.notificationsInNotch) { _, on in
-                        if on && !AXIsProcessTrusted() { requestAccessibility() }
-                    }
-                if settings.notificationsInNotch {
-                    Toggle("Hide the macOS banner (show only in the notch)", isOn: $settings.hideSystemBanners)
-                    TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        if AXIsProcessTrusted() {
-                            Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            HStack {
-                                Label("Isle needs Accessibility access to see notifications",
-                                      systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                Spacer()
-                                Button("Open Settings") {
-                                    requestAccessibility()
-                                    openPrivacySettings("Privacy_Accessibility")
-                                }
-                            }
-                        }
-                    }
-                }
-                Text("Isle reads notification banners as they appear and shows them in the notch. Notifications that don't show a banner (set to \"None\" or in Focus) can't be seen.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text("Notifications").font(.headline)
             }
             Section {
                 Text("Some quotes are provided by [ZenQuotes API](https://zenquotes.io/).")
@@ -193,10 +152,4 @@ struct ShortcutRow: View {
                 .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.15)))
         }
     }
-}
-
-/// Shows the system prompt that adds Isle to the Accessibility list.
-private func requestAccessibility() {
-    let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-    _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
 }

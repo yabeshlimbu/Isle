@@ -19,7 +19,6 @@ final class Features {
     let converter = Converter()
     let timer = TimerModel()
     let downloads = DownloadMonitor()
-    let notifications = NotificationWatcher()
     let activities: ActivityCenter
 
     init() {

@@ -8,7 +8,6 @@ A small macOS app that turns the notch at the top of your screen into a handy li
 
 - **Home** — a motivational quote that changes every 5 minutes, what's playing (Spotify, Apple Music, Safari, YouTube and more) with playback controls, and CPU / GPU usage, temperature and memory pressure.
 - **Activity circles** — keep awake, a timer, downloads in progress and your next meeting each get a small circle beside the notch, so the notch itself keeps your music. Click a circle to open it.
-- **Notifications in the notch** — banners from any app (Messages, WhatsApp, Mail…) appear in the notch. Optional; turn it on in Settings.
 - **Calendar** — today's events.
 - **Timer** — quick countdowns with a progress ring.
 - **Clipboard** — text clipboard history (skips password managers).
@@ -76,7 +75,6 @@ Isle asks for these only when you use the feature that needs them:
 |---|---|
 | Calendars | Showing today's events |
 | Camera | The camera mirror |
-| Accessibility | Notifications in the notch (only if you turn it on) |
 | Downloads folder | Download progress circle |
 | Automation (Music, Spotify) | Extra now-playing details and controls for those two apps |
 
