@@ -60,7 +60,7 @@ xattr -dr com.apple.quarantine /Applications/Isle.app
 Needs Xcode or the Xcode Command Line Tools (`xcode-select --install`).
 
 ```sh
-git clone https://github.com/yabeshlimbu17/isle.git
+git clone https://github.com/yabeshlimbu/isle.git
 cd isle
 ./build.sh install    # builds, copies to /Applications and launches
 ```
