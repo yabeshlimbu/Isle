@@ -33,8 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "Isle")
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         let menu = NSMenu()
         menu.delegate = self
@@ -44,12 +43,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         let quit = NSMenuItem(title: "Quit Isle", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.items = [peek, loginItem, settings, .separator(), quit]
+        menu.items = [nepaliDateItem, .separator(), peek, loginItem, settings, .separator(), quit]
         statusItem.menu = menu
+
+        updateNepaliDate()
+        // Roll over at midnight, and after waking from sleep.
+        NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.updateNepaliDate()
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil,
+                                                          queue: .main) { [weak self] _ in
+            self?.updateNepaliDate()
+        }
     }
+
+    /// Shows today's Nepali (Bikram Sambat) date in the menu bar, e.g. "मंसिर ६".
+    private func updateNepaliDate() {
+        guard let button = statusItem.button else { return }
+        if let bs = NepaliDate(Date()) {
+            button.image = nil
+            button.title = "\(NepaliDate.monthNames[bs.month - 1]) \(NepaliDate.devanagari(bs.day))"
+            button.toolTip = "\(bs.formattedLatin) BS"
+            nepaliDateItem.title = "\(bs.weekdayName), \(bs.formatted)"
+            nepaliDateItem.isHidden = false
+        } else {
+            // Outside the conversion table: fall back to the Isle icon.
+            button.title = ""
+            button.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "Isle")
+            button.toolTip = nil
+            nepaliDateItem.isHidden = true
+        }
+    }
+
+    private let nepaliDateItem: NSMenuItem = {
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
+    }()
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        updateNepaliDate()
     }
 
     @objc private func showIsland() { island.peek() }

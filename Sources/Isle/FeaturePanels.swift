@@ -50,13 +50,6 @@ struct CalendarPanel: View {
     @ObservedObject var model: CalendarModel
 
     var body: some View {
-        VStack(spacing: 6) {
-            TodayHeader()
-            events.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    @ViewBuilder private var events: some View {
         switch model.access {
         case .notDetermined:
             VStack(spacing: 10) {
@@ -81,25 +74,6 @@ struct CalendarPanel: View {
                     }
                 }
             }
-        }
-    }
-}
-
-/// Today's date in Nepali (Bikram Sambat) and in the Gregorian calendar.
-struct TodayHeader: View {
-    var body: some View {
-        TimelineView(.everyMinute) { context in
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let bs = NepaliDate(context.date) {
-                    Text(bs.formatted).font(.system(size: 14, weight: .semibold))
-                    Text(bs.weekdayName).font(.system(size: 11)).foregroundStyle(.secondary)
-                        .help(bs.formattedLatin + " BS")
-                }
-                Spacer()
-                Text(context.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 4)
         }
     }
 }
