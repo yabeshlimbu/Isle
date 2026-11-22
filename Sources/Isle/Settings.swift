@@ -22,11 +22,21 @@ final class Settings: ObservableObject {
         didSet { UserDefaults.standard.set(showInFullscreen, forKey: "showInFullscreen") }
     }
 
+    // Nepali (BS) date in the menu bar
+    @Published var showNepaliDate: Bool {
+        didSet { UserDefaults.standard.set(showNepaliDate, forKey: "showNepaliDate") }
+    }
+    @Published var nepaliDateInNepali: Bool {
+        didSet { UserDefaults.standard.set(nepaliDateInNepali, forKey: "nepaliDateInNepali") }
+    }
+
     private init() {
         let d = UserDefaults.standard
         clipboardLimit = d.object(forKey: "clipboardLimit") as? Int ?? 30
         clipboardPersist = d.object(forKey: "clipboardPersist") as? Bool ?? true
         showInFullscreen = d.object(forKey: "showInFullscreen") as? Bool ?? false
+        showNepaliDate = d.object(forKey: "showNepaliDate") as? Bool ?? true
+        nepaliDateInNepali = d.object(forKey: "nepaliDateInNepali") as? Bool ?? true
     }
 }
 
@@ -81,6 +91,19 @@ struct GeneralSettingsTab: View {
                 Toggle("Show island in fullscreen apps", isOn: $settings.showInFullscreen)
             } header: {
                 Text("Appearance").font(.headline)
+            }
+            Section {
+                Toggle("Show Nepali (BS) date", isOn: $settings.showNepaliDate)
+                Picker("Language", selection: $settings.nepaliDateInNepali) {
+                    Text("नेपाली — आइत ६ मंसिर").tag(true)
+                    Text("English — Sun 6 Mangsir").tag(false)
+                }
+                .disabled(!settings.showNepaliDate)
+                Text("Tip: in System Settings → Control Center → Clock Options, set Show date to Never so only the time and the BS date show. ⌘-drag the date to move it next to the clock.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Menu Bar").font(.headline)
             }
             Section {
                 Text("Some quotes are provided by [ZenQuotes API](https://zenquotes.io/).")

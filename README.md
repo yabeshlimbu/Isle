@@ -15,6 +15,7 @@ A small macOS app that turns the notch at the top of your screen into a handy li
 - **Notes** — a quick scratchpad.
 - **Camera** — a mirror to check how you look before a call.
 - **Keep awake** — stop your Mac from sleeping while the cup icon is on.
+- **Nepali date** — today's Bikram Sambat date in the menu bar (आइत ६ मंसिर or Sun 6 Mangsir). Turn it off or switch language in Settings.
 
 ## Requirements
 

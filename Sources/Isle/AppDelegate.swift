@@ -10,12 +10,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let settingsController = SettingsWindowController()
     private let hotkeys = GlobalHotkeys()
+    private let nepaliDate = NepaliDateStatusItem()
     private let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         island = IslandController()
         island.show()
         setupStatusItem()
+        nepaliDate.start()
         setupHotkeys()
         // The gear button in the island posts this.
         NotificationCenter.default.addObserver(forName: .openIsleSettings, object: nil, queue: .main) { [weak self] _ in
