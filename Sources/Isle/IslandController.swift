@@ -323,6 +323,12 @@ final class IslandController {
             dropKeyFocus()
             panel.ignoresMouseEvents = true
             state.dropTargeted = false
+            // Next time it opens, start on Home. Wait for the close animation so
+            // the page doesn't swap while the island is still shrinking.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+                guard let self, !self.state.expanded else { return }
+                self.state.tab = .home
+            }
         }
     }
 
