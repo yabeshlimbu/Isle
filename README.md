@@ -6,7 +6,8 @@ A small macOS app that turns the notch at the top of your screen into a handy li
 
 ## Features
 
-- **Home** — a motivational quote that changes every 5 minutes, what's playing (Spotify, Apple Music, Safari, YouTube and more) with playback controls, and CPU / GPU usage, temperature and memory pressure.
+- **Home** — a motivational quote that changes every 5 minutes, what's playing (Spotify, Apple Music, Safari, YouTube and more) with playback controls, and CPU / GPU usage, temperature and memory pressure. The island always opens on Home.
+- **Nepali date** — today's Bikram Sambat date (e.g. मंसिर ६) in the menu bar; click it for the weekday and full date.
 - **Activity circles** — keep awake, a timer, downloads in progress and your next meeting each get a small circle beside the notch, so the notch itself keeps your music. Click a circle to open it.
 - **Calendar** — today's events.
 - **Timer** — quick countdowns with a progress ring.
