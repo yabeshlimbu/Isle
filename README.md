@@ -60,9 +60,19 @@ xattr -dr com.apple.quarantine /Applications/Isle.app
 
 Needs Xcode or the Xcode Command Line Tools (`xcode-select --install`).
 
+Install or update with one command (run it again any time to get the latest version):
+
 ```sh
-git clone https://github.com/yabeshlimbu/isle.git
-cd isle
+git clone https://github.com/yabeshlimbu/Isle.git ~/Isle 2>/dev/null || git -C ~/Isle pull; ~/Isle/build.sh install
+```
+
+It downloads Isle into `~/Isle` (or pulls the latest changes if it's already there), builds it, copies it to /Applications and launches it.
+
+Or step by step:
+
+```sh
+git clone https://github.com/yabeshlimbu/Isle.git
+cd Isle
 ./build.sh install    # builds, copies to /Applications and launches
 ```
 
